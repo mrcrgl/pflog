@@ -21,7 +21,7 @@ func init() {
 	)
 }
 
-var defaultLogger = logger.New(text.Encode, os.Stderr)
+var defaultLogger = logger.New(text.NewEncoder(), os.Stderr)
 
 func With(containers ...logging.Container) logging.Logger {
 	return defaultLogger.With(containers...)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/mrcrgl/pflog/pkg/logging"
 
+	"github.com/mrcrgl/bytesf"
 	"github.com/mrcrgl/timef"
 )
 
@@ -22,11 +23,36 @@ var (
 	lineEnd               []byte = []byte(";\n")
 )
 
-func Encode(in *logging.Entry) (out []byte, err error) {
-	/*bs := make([]byte, 0, 26)
-	b := bytes.NewBuffer(bs)*/
-	b := new(bytes.Buffer)
+func NewEncoder() *encoder {
+	return &encoder{
+		bp: bytesf.NewBufferPool(128, 512),
+	}
+}
 
+type encoder struct {
+	bp bytesf.BufferPool
+}
+
+func (e *encoder) Encode(in *logging.Entry) ([]byte, error) {
+	b := e.bp.Allocate()
+	defer e.bp.Release(b)
+
+	err := encode(in, b)
+
+	return b.Bytes(), err
+}
+
+func Encode(in *logging.Entry) ([]byte, error) {
+	bs := make([]byte, 26, 256)
+	b := bytes.NewBuffer(bs)
+	b.Reset()
+
+	err := encode(in, b)
+
+	return b.Bytes(), err
+}
+
+func encode(in *logging.Entry, b *bytes.Buffer) (err error) {
 	switch in.Severity {
 	case logging.SeverityInfo:
 		b.Write(infoStringRep)
@@ -40,6 +66,8 @@ func Encode(in *logging.Entry) (out []byte, err error) {
 	case logging.SeverityFatal:
 		b.Write(fatalStringRep)
 		break
+	default:
+		b.WriteByte('?')
 	}
 
 	//fmt.Printf("len=%d\n", b.Len())
@@ -59,7 +87,7 @@ func Encode(in *logging.Entry) (out []byte, err error) {
 
 		_, err := c.WriteTextTo(b)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if c.Enclosed() {
@@ -71,5 +99,5 @@ func Encode(in *logging.Entry) (out []byte, err error) {
 
 	b.Write(lineEnd)
 
-	return b.Bytes(), nil
+	return nil
 }
